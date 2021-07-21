@@ -11,12 +11,14 @@ import java.util.*
 class MapViewModel : ViewModel() {
     private val mapRepository = MapRepository.get()
     private val positionIdLiveData = MutableLiveData<UUID>()
+    val positionListLiveData = mapRepository.getPositions()
 
-    var mapLiveData: LiveData<Position> = Transformations.switchMap(positionIdLiveData) {
+    var positionLiveData: LiveData<Position> = Transformations.switchMap(positionIdLiveData) {
         mapRepository.getPosition(it)
     }
 
     fun loadPosition(id: UUID) {
         positionIdLiveData.value = id
     }
+
 }

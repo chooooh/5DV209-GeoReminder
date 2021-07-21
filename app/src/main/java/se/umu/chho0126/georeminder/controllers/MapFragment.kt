@@ -6,8 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentResultListener
-import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -35,11 +33,12 @@ private const val ZOOM_LEVEL_STREET = 15f
 
 class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, ReminderDialogFragment.Callbacks {
     private lateinit var mapView: MapView
-    private lateinit var googleMap: GoogleMap
     private lateinit var mapViewModel: MapViewModel
-    private lateinit var marker: Marker
-    private var position: Position? = null
     private val mapRepository = MapRepository.get() // denna ska väl inte vara här?
+    private var marker: Marker? = null
+    private var googleMap: GoogleMap? = null
+    private val positionId: UUID? = null
+    private var position: Position? = null
 
     interface Callbacks {
         fun onMarkerAdded()
@@ -53,16 +52,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         if (positionId != null) {
             mapViewModel.loadPosition(positionId)
         }
-        // ta bort
-        setFragmentResultListener(REQUEST_REMINDER) { requestKey, bundle ->
-            Log.d(TAG, "In OnFragmentResult")
-            when (requestKey) {
-                REQUEST_REMINDER -> {
-                    Log.d(TAG, "Received result for $requestKey")
-                }
-
-            }
-        }
     }
 
     override fun onCreateView(
@@ -74,30 +63,46 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         mapView = view.findViewById(R.id.mapView)
         mapView.onCreate(savedInstanceState)
         mapView.onResume()
+        mapView.getMapAsync(this)
         return view
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        Log.d(TAG, "onViewCreated")
         super.onViewCreated(view, savedInstanceState)
-        mapViewModel.mapLiveData.observe(viewLifecycleOwner, { position ->
+        // Sätt in positionListLiveData istället...
+        mapViewModel.positionLiveData.observe(viewLifecycleOwner, { position ->
             this.position = position
-            Log.d(TAG, "mapLiveData: $position")
+            /*
+            marker?.let {
+                val (_, title, lat, lon) = position
+                it.position = LatLng(lat, lon)
+                it.title = title
+            }
+             */
+            position?.let {
+                placeMarker(it)
+                focusCameraAt(it, ZOOM_LEVEL_LANDMASS)
+                Log.d(TAG, "mapLiveData: $it")
+            }
         })
-        mapView.getMapAsync(this)
     }
 
     override fun onResume() {
+        Log.d(TAG, "onResume")
         super.onResume()
         // prova lägg till markers här!
         mapView.onResume()
     }
 
     override fun onPause() {
+        Log.d(TAG, "onPause")
         super.onPause()
         mapView.onPause()
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy")
         super.onDestroy()
         mapView.onDestroy()
     }
@@ -108,6 +113,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
+        Log.d(TAG, "onMapReady")
         this.googleMap = googleMap
         with(googleMap) {
             uiSettings.isZoomControlsEnabled = true
@@ -117,28 +123,32 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             setOnMarkerClickListener(this@MapFragment)
         }
 
+        /*
         position?.let {
-            Log.d(TAG, "position is no longer null, now placing marker!")
             placeMarker(it)
         }
+
+         */
     }
 
+    // Undersök denna...
     override fun onMapClick(latLng: LatLng) {
         Log.d(TAG, "Clicking")
         val lat = latLng.latitude
         val lon = latLng.longitude
         val positionId = UUID.randomUUID()
         mapRepository.addPosition(Position(positionId, "untitled", lat, lon))
+        mapViewModel.loadPosition(positionId)
         ReminderDialogFragment.newInstance(positionId).apply {
             show(this@MapFragment.childFragmentManager, REQUEST_REMINDER)
         }
-        val markerPosition = MarkerOptions().position(latLng)
-        marker = googleMap.addMarker(markerPosition)
+        marker = googleMap?.addMarker(MarkerOptions().position(latLng))
     }
 
     override fun onSave(id: UUID, reminder: String) {
         Log.d(TAG, "OnSave in mapfragment!!!!")
         mapRepository.updatePositionTitle(id, reminder)
+        marker?.title = reminder
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
@@ -147,13 +157,23 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     }
 
     private fun placeMarker(pos: Position) {
-        with(googleMap) {
+        googleMap?.let {
             val (_, title, lat, long) = pos
             val position = LatLng(lat, long)
             val marker = MarkerOptions().position(position).title(title)
-            addMarker(marker)
-            moveCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL_LANDMASS))
+            it.addMarker(marker)
         }
+
+    }
+
+    private fun focusCameraAt(pos: Position, zoomLevel: Float) {
+        val (_, _, lat, long) = pos
+        val position = LatLng(lat, long)
+        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(position, zoomLevel))
+    }
+
+    private fun placeMarkers() {
+
     }
 
     companion object {
