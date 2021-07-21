@@ -35,6 +35,13 @@ class MapRepository private constructor(context: Context) {
         }
     }
 
+    fun updatePositionTitle(positionId: UUID, title: String) {
+        executor.execute {
+            positionDao.updatePositionTitle(positionId, title)
+        }
+
+    }
+
 
     companion object {
         private var INSTANCE: MapRepository? = null

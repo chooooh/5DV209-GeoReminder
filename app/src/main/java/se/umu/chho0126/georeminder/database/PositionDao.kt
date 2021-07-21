@@ -17,9 +17,13 @@ interface PositionDao {
     @Query("SELECT * FROM position WHERE id=(:id)")
     fun getPosition(id: UUID): LiveData<Position>
 
+    @Query("UPDATE position SET title=(:title) WHERE id=(:id)")
+    fun updatePositionTitle(id: UUID, title: String)
+
     @Insert
     fun addPosition(position: Position)
 
     @Delete
     fun deletePosition(position: Position)
+
 }

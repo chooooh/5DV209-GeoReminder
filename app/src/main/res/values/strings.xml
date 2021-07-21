@@ -3,4 +3,6 @@
     <string name="title_activity_maps">Map</string>
     
     <string name="placeholder_list_item_map_title">Stockholm</string>
+    <string name="dialog_reminder_text">Enter reminder</string>
+    <string name="dialog_reminder_save">Save</string>
 </resources>

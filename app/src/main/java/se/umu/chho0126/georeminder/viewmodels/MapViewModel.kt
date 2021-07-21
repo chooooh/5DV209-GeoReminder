@@ -19,5 +19,4 @@ class MapViewModel : ViewModel() {
     fun loadPosition(id: UUID) {
         positionIdLiveData.value = id
     }
-
 }
