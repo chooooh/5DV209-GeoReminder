@@ -71,6 +71,11 @@ class MapListFragment: Fragment() {
         )
     }
 
+    override fun onDetach() {
+        super.onDetach()
+        callbacks = null
+    }
+
     private fun updateUI(positions: List<Position>) {
         mapAdapter = MapAdapter(positions)
         mapRecyclerView.adapter = mapAdapter

@@ -12,6 +12,9 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks, ReminderDia
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Lyssna efter location
+
+
         val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
         if (currentFragment == null) {
             val fragment = MapListFragment.newInstance()
@@ -21,15 +24,6 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks, ReminderDia
                 .commit()
         }
 
-        /*
-        if (currentFragment == null) {
-            val fragment = MapFragment.newInstance()
-            supportFragmentManager
-                .beginTransaction()
-                .add(R.id.fragment_container, fragment)
-                .commit()
-        }
-         */
     }
 
     override fun onMapSelected(positionId: UUID) {

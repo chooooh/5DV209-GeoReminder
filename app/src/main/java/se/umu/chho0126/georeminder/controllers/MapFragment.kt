@@ -1,12 +1,17 @@
 package se.umu.chho0126.georeminder.controllers
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
@@ -23,35 +28,70 @@ import java.util.*
 
 private const val TAG = "MapFragment"
 private const val ARG_POSITION_ID = "map_id"
-private const val ARG_MAP_LAT = "map_lat"
-private const val ARG_MAP_LONG = "map_lon"
 private const val REQUEST_REMINDER = "DialogReminder"
 
 private const val ZOOM_LEVEL_LANDMASS = 5f
 private const val ZOOM_LEVEL_CITY = 10f
 private const val ZOOM_LEVEL_STREET = 15f
 
+
 class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, ReminderDialogFragment.Callbacks {
     private lateinit var mapView: MapView
     private lateinit var mapViewModel: MapViewModel
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var currentLocation: LocationResult
+    private var locationCallback: LocationCallback = MyLocationCallback()
+    private var positions: List<Position> = listOf()
     private val mapRepository = MapRepository.get() // denna ska väl inte vara här?
     private var marker: Marker? = null
     private var googleMap: GoogleMap? = null
-    private val positionId: UUID? = null
-    private var position: Position? = null
 
-    interface Callbacks {
-        fun onMarkerAdded()
+    private inner class MyLocationCallback: LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            googleMap?.clear()
+            locationResult.locations.forEach {
+                Log.d(TAG, "$it")
+                val position = Position(UUID.randomUUID(), "MY LOCATION!", it.latitude, it.longitude)
+                placeMarker(position)
+            }
+            /*
+            val position = Position(UUID.randomUUID(), "MY LOCATION!", location.latitude, location.longitude)
+            placeMarker(position)
+            focusCameraAt(position, ZOOM_LEVEL_LANDMASS)
+            positions.forEach {
+                val loc = Location("")
+                loc.latitude = it.latitude
+                loc.longitude = it.longitude
+                val distance = location.distanceTo(loc)
+                if (distance < 1000) {
+                    Toast.makeText(requireContext(), "distance to ${it.title} is $distance", Toast.LENGTH_LONG).show()
+                }
+                Log.d(TAG, "distance to ${it.title}: $distance")
+            }
+
+             */
+        }
     }
+
+    val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "isGranted = true")
+
+        } else {
+            Log.d(TAG, "isGranted = false")
+            //ActivityCompat.requestPermissions(requireActivity(), permissions, MY_PERMISSIONS_REQUEST_LOCATION)
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mapViewModel = ViewModelProvider(requireActivity()).get(MapViewModel::class.java)
         val positionId: UUID? = arguments?.getSerializable(ARG_POSITION_ID) as? UUID
-        Log.d(TAG, "onCreate: positionId: $positionId")
         if (positionId != null) {
             mapViewModel.loadPosition(positionId)
         }
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
     }
 
     override fun onCreateView(
@@ -61,49 +101,47 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     ): View? {
         val view = inflater.inflate(R.layout.fragment_map, container, false)
         mapView = view.findViewById(R.id.mapView)
-        mapView.onCreate(savedInstanceState)
-        mapView.onResume()
-        mapView.getMapAsync(this)
         return view
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         Log.d(TAG, "onViewCreated")
         super.onViewCreated(view, savedInstanceState)
+        mapView.onCreate(savedInstanceState)
+        mapView.onResume()
+        mapView.getMapAsync(this)
         // Sätt in positionListLiveData istället...
-        mapViewModel.positionLiveData.observe(viewLifecycleOwner, { position ->
-            this.position = position
-            /*
-            marker?.let {
-                val (_, title, lat, lon) = position
-                it.position = LatLng(lat, lon)
-                it.title = title
+        mapViewModel.positionListLiveData.observe(viewLifecycleOwner) {
+            positions = it
+            it?.let {
+                Log.d(TAG, "LISTAN GER: ${it.size}")
+                googleMap?.clear()
+                placeMarkers(it)
             }
-             */
+        }
+
+        mapViewModel.positionLiveData.observe(viewLifecycleOwner) { position ->
             position?.let {
-                placeMarker(it)
-                focusCameraAt(it, ZOOM_LEVEL_LANDMASS)
-                Log.d(TAG, "mapLiveData: $it")
+                focusCameraAt(it, ZOOM_LEVEL_CITY)
             }
-        })
+        }
     }
 
     override fun onResume() {
-        Log.d(TAG, "onResume")
         super.onResume()
         // prova lägg till markers här!
         mapView.onResume()
+
     }
 
     override fun onPause() {
-        Log.d(TAG, "onPause")
         super.onPause()
         mapView.onPause()
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "onDestroy")
         super.onDestroy()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
         mapView.onDestroy()
     }
 
@@ -113,7 +151,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
-        Log.d(TAG, "onMapReady")
         this.googleMap = googleMap
         with(googleMap) {
             uiSettings.isZoomControlsEnabled = true
@@ -123,17 +160,56 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             setOnMarkerClickListener(this@MapFragment)
         }
 
+
+        positions?.let {
+            placeMarkers(it)
+        }
         /*
-        position?.let {
-            placeMarker(it)
+        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        Log.d(TAG, "Permission: $permission")
+        if (permission) {
+            fusedLocationClient.lastLocation.addOnSuccessListener {
+                Log.d(TAG, "true")
+            }
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
          */
+        if (checkLocationPermission()) {
+            val locationRequest = createLocationRequest(10000, 5000)
+            fusedLocationClient?.requestLocationUpdates(locationRequest, locationCallback, null)
+            /*
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                Log.d(TAG, "has permissions.. Performing operations if $location is not null")
+                if (location != null) {
+                    Log.d(TAG, "$location")
+                    val position = Position(UUID.randomUUID(), "MY LOCATION!", location.latitude, location.longitude, )
+                    placeMarker(position)
+                    focusCameraAt(position, ZOOM_LEVEL_LANDMASS)
+                    positions.forEach {
+                        val loc = Location("")
+                        loc.latitude = it.latitude
+                        loc.longitude = it.longitude
+                        val distance = location.distanceTo(loc)
+                        if (distance < 1000) {
+                            Toast.makeText(requireContext(), "distance to ${it.title} is $distance", Toast.LENGTH_LONG).show()
+                        }
+                        Log.d(TAG, "distance to ${it.title}: $distance")
+                    }
+                }
+            }
+             */
+        } else {
+            Log.d(TAG, "no permission.. Launching permission launcher")
+            //ActivityCompat.requestPermissions(requireActivity(), permissions, MY_PERMISSIONS_REQUEST_LOCATION)
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
     }
+
 
     // Undersök denna...
     override fun onMapClick(latLng: LatLng) {
-        Log.d(TAG, "Clicking")
         val lat = latLng.latitude
         val lon = latLng.longitude
         val positionId = UUID.randomUUID()
@@ -146,7 +222,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     }
 
     override fun onSave(id: UUID, reminder: String) {
-        Log.d(TAG, "OnSave in mapfragment!!!!")
         mapRepository.updatePositionTitle(id, reminder)
         marker?.title = reminder
     }
@@ -172,11 +247,28 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(position, zoomLevel))
     }
 
-    private fun placeMarkers() {
+    private fun placeMarkers(positions: List<Position>) {
+        positions.forEach {
+            placeMarker(it)
+        }
+    }
 
+    private fun checkLocationPermission(): Boolean {
+        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        Log.d(TAG, "Location permission: $permission")
+        return permission
+    }
+
+    private fun createLocationRequest(interval: Int, fastestInterval: Int, priority: Int = LocationRequest.PRIORITY_HIGH_ACCURACY): LocationRequest {
+        val locationRequest = LocationRequest.create()
+        locationRequest.interval = 10000
+        locationRequest.fastestInterval = 5000
+        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        return locationRequest
     }
 
     companion object {
+        const val MY_PERMISSIONS_REQUEST_LOCATION = 851923
         fun newInstance(): MapFragment {
             return MapFragment()
         }
@@ -190,7 +282,5 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             }
         }
     }
-
-
 
 }

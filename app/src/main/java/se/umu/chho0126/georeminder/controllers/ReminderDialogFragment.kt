@@ -4,11 +4,9 @@ import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.setFragmentResult
 import se.umu.chho0126.georeminder.R
 import java.util.*
 
@@ -17,8 +15,9 @@ private const val ARG_REMINDER = "reminder"
 private const val ARG_ID = "reminder_id"
 
 class ReminderDialogFragment : DialogFragment() {
-    private lateinit var listener: Callbacks
     private lateinit var reminderEditText: EditText
+    private var callbacks: Callbacks? = null
+
     interface Callbacks {
         fun onSave(id: UUID, reminder: String)
     }
@@ -26,10 +25,15 @@ class ReminderDialogFragment : DialogFragment() {
     override fun onAttach(context: Context) {
         super.onAttach(context)
         try {
-            listener = parentFragment as Callbacks
+            callbacks = parentFragment as Callbacks
         } catch (e: ClassCastException) {
             throw ClassCastException(("$context must implement ReminderDialogListener"))
         }
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        callbacks = null
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -44,13 +48,12 @@ class ReminderDialogFragment : DialogFragment() {
             builder.setView(view)
             builder.setPositiveButton(R.string.dialog_reminder_save) { _, _ ->
                 Log.d(TAG, "pressed positive button ${reminderEditText.text}")
-                listener.onSave(id, reminderEditText.text.toString())
+                callbacks?.onSave(id, reminderEditText.text.toString())
             }
 
             builder.create()
         } ?: throw IllegalStateException("Activity cannot be null")
     }
-
 
     companion object {
         fun newInstance(id: UUID): ReminderDialogFragment {

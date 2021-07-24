@@ -21,4 +21,8 @@ class MapViewModel : ViewModel() {
         positionIdLiveData.value = id
     }
 
+    fun getPosition(id: UUID): LiveData<Position> {
+        return mapRepository.getPosition(id)
+    }
+
 }
