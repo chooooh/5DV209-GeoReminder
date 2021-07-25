@@ -38,51 +38,11 @@ private const val ZOOM_LEVEL_STREET = 15f
 class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, ReminderDialogFragment.Callbacks {
     private lateinit var mapView: MapView
     private lateinit var mapViewModel: MapViewModel
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var currentLocation: LocationResult
-    private var locationCallback: LocationCallback = MyLocationCallback()
     private var positions: List<Position> = listOf()
     private val mapRepository = MapRepository.get() // denna ska väl inte vara här?
     private var marker: Marker? = null
     private var googleMap: GoogleMap? = null
-
-    private inner class MyLocationCallback: LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            googleMap?.clear()
-            locationResult.locations.forEach {
-                Log.d(TAG, "$it")
-                val position = Position(UUID.randomUUID(), "MY LOCATION!", it.latitude, it.longitude)
-                placeMarker(position)
-            }
-            /*
-            val position = Position(UUID.randomUUID(), "MY LOCATION!", location.latitude, location.longitude)
-            placeMarker(position)
-            focusCameraAt(position, ZOOM_LEVEL_LANDMASS)
-            positions.forEach {
-                val loc = Location("")
-                loc.latitude = it.latitude
-                loc.longitude = it.longitude
-                val distance = location.distanceTo(loc)
-                if (distance < 1000) {
-                    Toast.makeText(requireContext(), "distance to ${it.title} is $distance", Toast.LENGTH_LONG).show()
-                }
-                Log.d(TAG, "distance to ${it.title}: $distance")
-            }
-
-             */
-        }
-    }
-
-    val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) {
-            Log.d(TAG, "isGranted = true")
-
-        } else {
-            Log.d(TAG, "isGranted = false")
-            //ActivityCompat.requestPermissions(requireActivity(), permissions, MY_PERMISSIONS_REQUEST_LOCATION)
-        }
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +51,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         if (positionId != null) {
             mapViewModel.loadPosition(positionId)
         }
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
     }
 
     override fun onCreateView(
@@ -141,7 +100,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
 
     override fun onDestroy() {
         super.onDestroy()
-        fusedLocationClient.removeLocationUpdates(locationCallback)
         mapView.onDestroy()
     }
 
@@ -160,51 +118,10 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             setOnMarkerClickListener(this@MapFragment)
         }
 
-
         positions?.let {
             placeMarkers(it)
         }
-        /*
-        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-        Log.d(TAG, "Permission: $permission")
-        if (permission) {
-            fusedLocationClient.lastLocation.addOnSuccessListener {
-                Log.d(TAG, "true")
-            }
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
 
-         */
-        if (checkLocationPermission()) {
-            val locationRequest = createLocationRequest(10000, 5000)
-            fusedLocationClient?.requestLocationUpdates(locationRequest, locationCallback, null)
-            /*
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                Log.d(TAG, "has permissions.. Performing operations if $location is not null")
-                if (location != null) {
-                    Log.d(TAG, "$location")
-                    val position = Position(UUID.randomUUID(), "MY LOCATION!", location.latitude, location.longitude, )
-                    placeMarker(position)
-                    focusCameraAt(position, ZOOM_LEVEL_LANDMASS)
-                    positions.forEach {
-                        val loc = Location("")
-                        loc.latitude = it.latitude
-                        loc.longitude = it.longitude
-                        val distance = location.distanceTo(loc)
-                        if (distance < 1000) {
-                            Toast.makeText(requireContext(), "distance to ${it.title} is $distance", Toast.LENGTH_LONG).show()
-                        }
-                        Log.d(TAG, "distance to ${it.title}: $distance")
-                    }
-                }
-            }
-             */
-        } else {
-            Log.d(TAG, "no permission.. Launching permission launcher")
-            //ActivityCompat.requestPermissions(requireActivity(), permissions, MY_PERMISSIONS_REQUEST_LOCATION)
-            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
     }
 
 
@@ -238,7 +155,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             val marker = MarkerOptions().position(position).title(title)
             it.addMarker(marker)
         }
-
     }
 
     private fun focusCameraAt(pos: Position, zoomLevel: Float) {
@@ -253,22 +169,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         }
     }
 
-    private fun checkLocationPermission(): Boolean {
-        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        Log.d(TAG, "Location permission: $permission")
-        return permission
-    }
-
-    private fun createLocationRequest(interval: Int, fastestInterval: Int, priority: Int = LocationRequest.PRIORITY_HIGH_ACCURACY): LocationRequest {
-        val locationRequest = LocationRequest.create()
-        locationRequest.interval = 10000
-        locationRequest.fastestInterval = 5000
-        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        return locationRequest
-    }
-
     companion object {
-        const val MY_PERMISSIONS_REQUEST_LOCATION = 851923
         fun newInstance(): MapFragment {
             return MapFragment()
         }

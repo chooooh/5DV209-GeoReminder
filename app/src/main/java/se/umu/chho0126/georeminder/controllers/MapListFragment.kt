@@ -40,6 +40,7 @@ class MapListFragment: Fragment() {
         super.onCreate(savedInstanceState)
         mapListViewModel = ViewModelProvider(requireActivity()).get(MapListViewModel::class.java)
         callbacks = context as Callbacks?
+        setHasOptionsMenu(true)
     }
 
     override fun onCreateView(
