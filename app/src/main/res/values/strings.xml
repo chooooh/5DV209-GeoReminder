@@ -6,4 +6,10 @@
     <string name="placeholder_list_item_map_title">Stockholm</string>
     <string name="dialog_reminder_text">Enter reminder</string>
     <string name="dialog_reminder_save">Save</string>
+    <string name="start_location_service">Start location service</string>
+    <string name="stop_tracking">Stop tracking</string>
+    <string name="start_tracking">Start tracking</string>
+    <string name="location_permission_title">Location permission needed</string>
+    <string name="location_permission_title">Location permission needed</string>
+    <string name="location_permission_message">Location permission is needed to determine your current location.</string>
 </resources>

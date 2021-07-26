@@ -1,6 +1,10 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -27,7 +31,6 @@ import java.util.*
 
 
 private const val TAG = "MapFragment"
-private const val ARG_POSITION_ID = "map_id"
 private const val REQUEST_REMINDER = "DialogReminder"
 
 private const val ZOOM_LEVEL_LANDMASS = 5f
@@ -43,6 +46,22 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     private val mapRepository = MapRepository.get() // denna ska väl inte vara här?
     private var marker: Marker? = null
     private var googleMap: GoogleMap? = null
+
+    private val onServiceCurrentLocation = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // register
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // unregister
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -170,6 +189,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     }
 
     companion object {
+        const val ARG_POSITION_ID = "map_id"
         fun newInstance(): MapFragment {
             return MapFragment()
         }
@@ -181,6 +201,14 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             return MapFragment().apply {
                 arguments = args
             }
+        }
+
+        fun newIntent(context: Context, positionId: UUID): Intent {
+            return Intent(context, MapFragment::class.java)
+        }
+
+        fun newIntent(context: Context): Intent {
+            return Intent(context, MapFragment::class.java)
         }
     }
 

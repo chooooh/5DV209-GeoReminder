@@ -1,26 +1,30 @@
 package se.umu.chho0126.georeminder.controllers
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import se.umu.chho0126.georeminder.MapRepository
+import se.umu.chho0126.georeminder.Preferences
 import se.umu.chho0126.georeminder.R
 import se.umu.chho0126.georeminder.models.Position
 import se.umu.chho0126.georeminder.viewmodels.MapListViewModel
 import java.util.*
 import kotlin.math.round
 
-
 private const val TAG = "MapListFragment"
+
 class MapListFragment: Fragment() {
 
     private lateinit var mapRecyclerView: RecyclerView
@@ -31,9 +35,30 @@ class MapListFragment: Fragment() {
     private var mapAdapter = MapAdapter(emptyList())
     private var mapRepository = MapRepository.get()
 
+    private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "isGranted = true")
+        } else {
+            Log.d(TAG, "isGranted = false")
+            val alertDialog = AlertDialog.Builder(requireContext())
+            with (alertDialog) {
+                setTitle(R.string.location_permission_title)
+                setMessage(R.string.location_permission_message)
+                create().show()
+            }
+
+        }
+    }
+
+    private fun checkLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
     interface Callbacks {
         fun onMapSelected(mapId: UUID)
         fun onAddMap()
+        fun onEnable()
+        fun onDisable()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,6 +66,44 @@ class MapListFragment: Fragment() {
         mapListViewModel = ViewModelProvider(requireActivity()).get(MapListViewModel::class.java)
         callbacks = context as Callbacks?
         setHasOptionsMenu(true)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.fragment_map_list, menu)
+
+        val toggleItem = menu.findItem(R.id.menu_item_toggle_location_service)
+        val isTracking = Preferences.isTracking(requireContext())
+        val toggleItemTitle = if (isTracking) {
+            R.string.stop_tracking
+        } else {
+            R.string.start_tracking
+        }
+        toggleItem.setTitle(toggleItemTitle)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_item_toggle_location_service -> {
+                if (!checkLocationPermission()) {
+                    requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    return true
+                }
+                val isTracking = Preferences.isTracking(requireContext())
+                if (isTracking) {
+                    Log.d(TAG, "disabling..")
+                    callbacks?.onDisable()
+                    Preferences.setTracking(requireContext(), false)
+                } else {
+                    Log.d(TAG, "enabling..")
+                    callbacks?.onEnable()
+                    Preferences.setTracking(requireContext(), true)
+                }
+                activity?.invalidateOptionsMenu()
+                return true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     override fun onCreateView(
@@ -70,6 +133,9 @@ class MapListFragment: Fragment() {
                 updateUI(it)
             }
         )
+        if (!checkLocationPermission()) {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
     }
 
     override fun onDetach() {

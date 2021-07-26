@@ -15,9 +15,6 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Lyssna efter location
-        startLocationService()
-
         val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
         if (currentFragment == null) {
             val fragment = MapListFragment.newInstance()
@@ -55,6 +52,14 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks {
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
             .commit()
+    }
+
+    override fun onEnable() {
+        startLocationService()
+    }
+
+    override fun onDisable() {
+        stopLocationService()
     }
 
 }
