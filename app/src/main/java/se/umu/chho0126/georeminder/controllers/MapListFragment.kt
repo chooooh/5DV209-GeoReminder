@@ -1,6 +1,7 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -25,8 +26,10 @@ import kotlin.math.round
 
 private const val TAG = "MapListFragment"
 
+/**
+ * This Fragment represents the screen with a RecyclerView containing positions.
+ */
 class MapListFragment: Fragment() {
-
     private lateinit var mapRecyclerView: RecyclerView
     private lateinit var button: Button
     private lateinit var mapListViewModel: MapListViewModel
@@ -35,39 +38,98 @@ class MapListFragment: Fragment() {
     private var mapAdapter = MapAdapter(emptyList())
     private var mapRepository = MapRepository.get()
 
+    /**
+     * Callback functions that MainActivity handles
+     */
+    interface Callbacks {
+        /**
+         * Implementation of this function determines what occurs when the user selects a reminder
+         * @param mapId UUID that represents the selected Reminder
+         */
+        fun onMapSelected(mapId: UUID)
+
+        /**
+         * Occurs when the user presses the "Map" button. This is supposed to start the map fragment
+         */
+        fun onAddMap()
+
+        /**
+         * Occurs when the user presses the "Start Tracking" button. This is supposed to start the
+         * location service.
+         */
+        fun onEnable()
+
+        /**
+         * Occurs when the user presses the "Stop Tracking" button. This is supposed to stop the
+         * location service.
+         */
+        fun onDisable()
+    }
+
+    //Checks if various permissions were granted. Displays messages accordingly.
     private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "isGranted = true")
-        } else {
-            Log.d(TAG, "isGranted = false")
+            // Permission acquired. Recommend disabling battery saver mode.
             val alertDialog = AlertDialog.Builder(requireContext())
             with (alertDialog) {
-                setTitle(R.string.location_permission_title)
-                setMessage(R.string.location_permission_message)
+                setTitle(getString(R.string.location_permission_battery_saver_title))
+                setMessage(getString(R.string.location_permission_battery_saver_message))
+                create().show()
+            }
+        } else {
+            // No permission acquired
+            val alertDialog = AlertDialog.Builder(requireContext())
+            with (alertDialog) {
+                setTitle(R.string.location_permission_denied_title)
+                setMessage(R.string.location_permission_denied_message)
                 create().show()
             }
 
         }
     }
 
+    // Checks if user has required permissions. Displays a rationale if needed, explaining why
+    // permissions are required.
     private fun checkLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+        return when {
+            permission == PackageManager.PERMISSION_GRANTED -> {
+                return true
+            }
+            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
+                val alertDialog = AlertDialog.Builder(requireContext())
+                with (alertDialog) {
+                    setTitle(getString(R.string.location_permission_edu_title))
+                    setMessage(getString(R.string.location_permission_edu_message))
+                    setNegativeButton(getString(R.string.location_permission_edu_cancel_button)) { _, _ ->
+                    }
+                    create().show()
+                }
+                return false
+            }
+            else -> {
+                return false
+            }
+        }
     }
 
-    interface Callbacks {
-        fun onMapSelected(mapId: UUID)
-        fun onAddMap()
-        fun onEnable()
-        fun onDisable()
-    }
-
+    /**
+     * Initialize the corresponding ViewModel and set context as callback.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mapListViewModel = ViewModelProvider(requireActivity()).get(MapListViewModel::class.java)
-        callbacks = context as Callbacks?
         setHasOptionsMenu(true)
     }
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        callbacks = context as Callbacks?
+    }
+
+    /**
+     * Creates the action bar menu. Displays the menu item based on current state of corresponding item.
+     */
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         super.onCreateOptionsMenu(menu, inflater)
         inflater.inflate(R.menu.fragment_map_list, menu)
@@ -82,19 +144,25 @@ class MapListFragment: Fragment() {
         toggleItem.setTitle(toggleItemTitle)
     }
 
+    /**
+     * Defines actions to perform when menu items is pressed. Also verifies that relevant
+     * permissions are granted, otherwise launch permission request.
+     */
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_item_toggle_location_service -> {
-                if (!checkLocationPermission()) {
-                    requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                    return true
-                }
                 val isTracking = Preferences.isTracking(requireContext())
                 if (isTracking) {
                     Log.d(TAG, "disabling..")
                     callbacks?.onDisable()
                     Preferences.setTracking(requireContext(), false)
                 } else {
+                    if (!checkLocationPermission()) {
+                        // Checka denna?
+                        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        //requestPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        return true
+                    }
                     Log.d(TAG, "enabling..")
                     callbacks?.onEnable()
                     Preferences.setTracking(requireContext(), true)
@@ -106,12 +174,15 @@ class MapListFragment: Fragment() {
         }
     }
 
+    /**
+     * Initializes views
+     */
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_map_list, container, false)
+        val view = inflater.inflate(R.layout.fragment_reminder_list, container, false)
         button = view.findViewById(R.id.button)
         button.setOnClickListener {
             callbacks?.onAddMap()
@@ -124,6 +195,9 @@ class MapListFragment: Fragment() {
         return view
     }
 
+    /**
+     * Begin observing the list livedata. Check if the user has location permission.
+     */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapListViewModel.mapListLiveData.observe(
@@ -151,6 +225,7 @@ class MapListFragment: Fragment() {
     private inner class MapHolder(view: View) : RecyclerView.ViewHolder(view), View.OnClickListener{
         private lateinit var position: Position
         private val titleTextView: TextView = itemView.findViewById(R.id.map_title)
+        private val radiusTextView: TextView = itemView.findViewById(R.id.text_radius)
         private val latTextView: TextView = itemView.findViewById(R.id.text_lat)
         private val longTextView: TextView = itemView.findViewById(R.id.text_long)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.imageButton)
@@ -162,6 +237,7 @@ class MapListFragment: Fragment() {
         fun bind(position: Position) {
             this.position = position
             titleTextView.text = position.title
+            radiusTextView.text = "${position.radius}m"
             latTextView.text = position.latitude.round(2).toString()
             longTextView.text = position.longitude.round(2).toString()
 
@@ -177,6 +253,10 @@ class MapListFragment: Fragment() {
         }
     }
 
+    /**
+     * Round the decimal to a specified number of integers
+     * @param decimals The number of decimals to round to
+     */
     fun Double.round(decimals: Int): Double {
         var multiplier = 1.0
         repeat(decimals) {

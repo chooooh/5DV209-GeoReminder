@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.room.Room
 import se.umu.chho0126.georeminder.database.MapDatabase
+import se.umu.chho0126.georeminder.database.migration_1_2
 import se.umu.chho0126.georeminder.models.Position
 import java.util.*
 import java.util.concurrent.Executors
@@ -15,7 +16,8 @@ class MapRepository private constructor(context: Context) {
         context.applicationContext,
         MapDatabase::class.java,
         DATABASE_NAME
-    ).build()
+    ).addMigrations(migration_1_2)
+        .build()
 
     private val positionDao = database.positionDao()
     private val executor = Executors.newSingleThreadExecutor()
@@ -39,9 +41,13 @@ class MapRepository private constructor(context: Context) {
         executor.execute {
             positionDao.updatePositionTitle(positionId, title)
         }
-
     }
 
+    fun updatePositionRadius(positionId: UUID, radius: Double) {
+        executor.execute {
+            positionDao.updatePositionRadius(positionId, radius)
+        }
+    }
 
     companion object {
         private var INSTANCE: MapRepository? = null

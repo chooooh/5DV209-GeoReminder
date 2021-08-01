@@ -9,7 +9,24 @@
     <string name="start_location_service">Start location service</string>
     <string name="stop_tracking">Stop tracking</string>
     <string name="start_tracking">Start tracking</string>
-    <string name="location_permission_title">Location permission needed</string>
-    <string name="location_permission_title">Location permission needed</string>
-    <string name="location_permission_message">Location permission is needed to determine your current location.</string>
+
+    <string name="location_permission_denied_title">Location permission required</string>
+    <string name="location_permission_denied_message">Location reminder feature is unavailable due to no access to required permission.</string>
+    <string name="location_permission_battery_saver_message">Make sure to disable battery save mode to ensure that the application function correctly.</string>
+    <string name="location_permission_battery_saver_title">Battery save mode</string>
+    <string name="location_permission_edu_title">Location permission required</string>
+    <string name="location_permission_edu_message">Location permission is required to track device location to determine whether specified reminders are within range.</string>
+    <string name="location_permission_edu_cancel_button">Cancel</string>
+    <string name="map_button">Map</string>
+
+    <string name="reminder_title_label">Title</string>
+    <string name="reminder_title_hint">Enter Reminder title</string>
+    <string name="reminder_radius_label">Radius</string>
+    <string name="reminder_radius_hint">Enter Reminder radius</string>
+    <string name="reminder_switch_text">Toggle reminder</string>
+    <string name="reminder_save_button">Save</string>
+    <string name="reminder_delete_button">Delete</string>
+    <string name="reminder_map_button">Reminder position</string>
+
+    <string name="location_service_notification_title">Location Service</string>
 </resources>

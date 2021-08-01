@@ -11,12 +11,25 @@
         android:layout_marginRight="4dp"
         android:layout_marginTop="4dp"
         android:scaleType="center" />
+
     <EditText
-        android:id="@+id/reminder_edit_text"
+        android:id="@+id/dialog_reminder_edit_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginLeft="4dp"
         android:layout_marginRight="4dp"
-        android:layout_marginBottom="4dp" />
+        android:layout_marginBottom="4dp"
+        android:hint="@string/reminder_title_hint"/>
+
+    <EditText
+        android:id="@+id/dialog_reminder_edit_radius"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginLeft="4dp"
+        android:layout_marginRight="4dp"
+        android:layout_marginBottom="4dp"
+        android:inputType="numberDecimal"
+        android:hint="@string/reminder_radius_hint"/>
 </LinearLayout>

@@ -1,6 +1,7 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
+import android.R
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
@@ -15,6 +16,7 @@ import androidx.lifecycle.LiveData
 import com.google.android.gms.location.*
 import se.umu.chho0126.georeminder.MapRepository
 import se.umu.chho0126.georeminder.NOTIFICATION_CHANNEL_ID
+import se.umu.chho0126.georeminder.Preferences
 import se.umu.chho0126.georeminder.models.Position
 import java.util.*
 
@@ -38,81 +40,101 @@ class LocationService : LifecycleService(){
 
     private inner class MyLocationCallback: LocationCallback() {
         private var positionsWithinRange: MutableList<PositionDTO> = mutableListOf()
-        private fun MutableList<PositionDTO>.containsPosition(position: Position): Boolean {
-            return this.any {
-                it.position == position
+
+        private fun createNotificationDescription(): StringBuilder {
+            val description = StringBuilder()
+            positionsWithinRange.forEach {
+                with(description) {
+                    appendLine(it.toString())
+                }
             }
+            return description
         }
 
-        override fun onLocationResult(locationResult: LocationResult) {
-            val currentLocation = locationResult.lastLocation
-            var dist: Float = 0F
-            positionsWithinRange = mutableListOf()
-
+        private fun addPositionsWithinRange(currentLocation: Location) {
             positions.forEach {
                 val location = Location("")
                 location.latitude = it.latitude
                 location.longitude = it.longitude
                 val distance = currentLocation.distanceTo(location)
-                val range = 1000
+                val range = it.radius
                 if (distance <= range) {
                     val positionDTO = PositionDTO(it, distance, currentLocation)
                     positionsWithinRange.add(positionDTO)
                 }
             }
-
-            Log.d(TAG, "$positionsWithinRange")
-            if (positionsWithinRange.isNotEmpty()) {
-                val description = StringBuilder()
-                positionsWithinRange.forEach {
-                    with(description) {
-                        appendLine("${it.position.title} - ${it.distanceTo}")
-                    }
-                }
-                positionsWithinRange
-
-                val startActivityIntent = MapFragment.newIntent(this@LocationService)
-                val pendingIntent = PendingIntent.getActivity(this@LocationService, MAP_FRAGMENT_PENDING_INTENT_REQUEST_CODE, startActivityIntent, 0)
-                val notification = createNotification("Location Service", description.toString(), pendingIntent)
-                startForeground(NOTIFICATION_REQUEST_CODE, notification)
-            } else {
-                val startActivityIntent = MapFragment.newIntent(this@LocationService)
-                val pendingIntent = PendingIntent.getActivity(this@LocationService, MAP_FRAGMENT_PENDING_INTENT_REQUEST_CODE, startActivityIntent, 0)
-                val notification = createNotification("Location Service", "not within range rn.." ,pendingIntent)
-                startForeground(NOTIFICATION_REQUEST_CODE, notification)
-
-            }
-
         }
 
+        private fun notifyUserAboutPositionsWithinRange() {
+            if (positionsWithinRange.isNotEmpty()) {
+                val description = createNotificationDescription()
+                val startActivityIntent = MainActivity.newIntent(this@LocationService)
+                startForegroundService(
+                    startActivityIntent = startActivityIntent,
+                    context = this@LocationService,
+                    pendRequestCode = MAIN_PENDING_INTENT_REQUEST_CODE,
+                    notRequestCode = NOTIFICATION_REQUEST_CODE,
+                    notTitle = "Location Service",
+                    notDesc = description.toString()
+                )
+            }
+        }
+
+        override fun onLocationResult(locationResult: LocationResult) {
+            val currentLocation = locationResult.lastLocation
+            positionsWithinRange = mutableListOf()
+
+            addPositionsWithinRange(currentLocation)
+            notifyUserAboutPositionsWithinRange()
+        }
     }
 
-    private fun createNotification(title: String, description: String, pendingIntent: PendingIntent): Notification {
-        val notification = NotificationCompat
+    private fun startForegroundService(
+        startActivityIntent: Intent,
+        context: Context,
+        pendRequestCode: Int,
+        notRequestCode: Int,
+        notTitle: String,
+        notDesc: String
+    ) {
+        val pendingIntent = PendingIntent.getActivity(context, pendRequestCode, startActivityIntent, 0)
+        val notification = createNotification(notTitle, notDesc, pendingIntent)
+        startForeground(notRequestCode, notification)
+    }
+
+    private fun createNotification(
+        title: String,
+        description: String,
+        pendingIntent: PendingIntent
+    ): Notification {
+        return NotificationCompat
             .Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(description)
-            .setSmallIcon(android.R.drawable.ic_menu_report_image)
+            .setSmallIcon(R.drawable.ic_menu_report_image)
             .setContentIntent(pendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(description))
             .build()
-
-        return notification
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        val startActivityIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, MAIN_PENDING_INTENT_REQUEST_CODE, startActivityIntent, 0)
+        Log.d(TAG, "onStartCommand")
 
-        // Lägg strängar i resources
-        val notification = createNotification("Location Service", "Tracking location", pendingIntent)
-        startForeground(NOTIFICATION_REQUEST_CODE, notification)
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        val locationRequest = createLocationRequest(50000, 40000)
+        val startActivityIntent = MainActivity.newIntent(this)
+        startForegroundService(
+            startActivityIntent = startActivityIntent,
+            context = this,
+            pendRequestCode = MAIN_PENDING_INTENT_REQUEST_CODE,
+            notRequestCode = NOTIFICATION_REQUEST_CODE,
+            notTitle = "Location Service",
+            notDesc = "Tracking location"
+        )
 
         if(checkLocationPermission()) {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            //val locationRequest = createLocationRequest(120000, 120000)
+            val locationRequest = createLocationRequest(12000, 12000)
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
         }
 
@@ -123,8 +145,25 @@ class LocationService : LifecycleService(){
         return START_STICKY
     }
 
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Log.d(TAG, "onLowMemory")
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "onTaskRemoved")
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Log.d(TAG, "onTrimMemory")
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        Log.d(TAG, "onDestroy")
+        Preferences.setTracking(this, false)
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
@@ -136,7 +175,7 @@ class LocationService : LifecycleService(){
         val locationRequest = LocationRequest.create()
         locationRequest.interval = interval
         locationRequest.fastestInterval = fastestInterval
-        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        locationRequest.priority = priority
         return locationRequest
     }
 

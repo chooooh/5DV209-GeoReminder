@@ -14,12 +14,19 @@ private const val TAG = "ReminderDialogFragment"
 private const val ARG_REMINDER = "reminder"
 private const val ARG_ID = "reminder_id"
 
+/**
+ * Represents a dialog prompting for the title of the marker.
+ */
 class ReminderDialogFragment : DialogFragment() {
     private lateinit var reminderEditText: EditText
+    private lateinit var reminderEditRadius: EditText
     private var callbacks: Callbacks? = null
 
     interface Callbacks {
-        fun onSave(id: UUID, reminder: String)
+        /**
+         * This function is invoked when the save button is pressed.
+         */
+        fun onSave(id: UUID, reminder: String, radius: Double)
     }
 
     override fun onAttach(context: Context) {
@@ -36,6 +43,9 @@ class ReminderDialogFragment : DialogFragment() {
         callbacks = null
     }
 
+    /**
+     * Constructs the dialog view and setup the button listener.
+     */
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         return activity?.let {
             val builder = AlertDialog.Builder(it)
@@ -44,11 +54,12 @@ class ReminderDialogFragment : DialogFragment() {
 
             val id = arguments?.getSerializable(ARG_ID) as UUID
 
-            reminderEditText = view.findViewById(R.id.reminder_edit_text)
+            reminderEditText = view.findViewById(R.id.dialog_reminder_edit_text)
+            reminderEditRadius = view.findViewById(R.id.dialog_reminder_edit_radius)
             builder.setView(view)
             builder.setPositiveButton(R.string.dialog_reminder_save) { _, _ ->
                 Log.d(TAG, "pressed positive button ${reminderEditText.text}")
-                callbacks?.onSave(id, reminderEditText.text.toString())
+                callbacks?.onSave(id, reminderEditText.text.toString(), reminderEditRadius.text.toString().toDouble())
             }
 
             builder.create()

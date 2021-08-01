@@ -1,25 +1,26 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.common.GoogleApiAvailabilityLight
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
@@ -37,37 +38,29 @@ private const val ZOOM_LEVEL_LANDMASS = 5f
 private const val ZOOM_LEVEL_CITY = 10f
 private const val ZOOM_LEVEL_STREET = 15f
 
-
+/**
+ * This Fragment represents the map screen.
+ */
 class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, ReminderDialogFragment.Callbacks {
     private lateinit var mapView: MapView
     private lateinit var mapViewModel: MapViewModel
-    private lateinit var currentLocation: LocationResult
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private var receivedLocation: Boolean = false
     private var positions: List<Position> = listOf()
     private val mapRepository = MapRepository.get() // denna ska väl inte vara här?
     private var marker: Marker? = null
     private var googleMap: GoogleMap? = null
 
-    private val onServiceCurrentLocation = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        // register
-    }
-
-    override fun onStop() {
-        super.onStop()
-        // unregister
-    }
-
+    /**
+     * Initialises the corresponding ViewModel. Also loads position if a position ID were
+     * specified as argument.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mapViewModel = ViewModelProvider(requireActivity()).get(MapViewModel::class.java)
         val positionId: UUID? = arguments?.getSerializable(ARG_POSITION_ID) as? UUID
         if (positionId != null) {
+            receivedLocation = true
             mapViewModel.loadPosition(positionId)
         }
     }
@@ -82,25 +75,29 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         return view
     }
 
+    /**
+     * Instantiates the Google mapView. This function also begins observing position data, placing
+     * and focusing on markers on position data changes.
+     */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         Log.d(TAG, "onViewCreated")
         super.onViewCreated(view, savedInstanceState)
         mapView.onCreate(savedInstanceState)
         mapView.onResume()
         mapView.getMapAsync(this)
-        // Sätt in positionListLiveData istället...
         mapViewModel.positionListLiveData.observe(viewLifecycleOwner) {
             positions = it
             it?.let {
                 Log.d(TAG, "LISTAN GER: ${it.size}")
                 googleMap?.clear()
+                placeCircles(it)
                 placeMarkers(it)
             }
         }
 
         mapViewModel.positionLiveData.observe(viewLifecycleOwner) { position ->
             position?.let {
-                focusCameraAt(it, ZOOM_LEVEL_CITY)
+                focusCameraAt(it, ZOOM_LEVEL_STREET)
             }
         }
     }
@@ -127,24 +124,47 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         mapView.onLowMemory()
     }
 
+    private fun initialCameraSetup(googleMap: GoogleMap) {
+        val permission = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (permission) {
+            googleMap.isMyLocationEnabled = true
+            if (!receivedLocation) {
+                googleMap.uiSettings.isMyLocationButtonEnabled = true
+                fusedLocationProviderClient = FusedLocationProviderClient(requireContext())
+                fusedLocationProviderClient.lastLocation.addOnSuccessListener {
+                    focusCameraAt(it, ZOOM_LEVEL_STREET)
+                }
+            }
+        }
+    }
+
+    /**
+     * Places all positions retrieved from the repository once the map is ready.
+     */
     override fun onMapReady(googleMap: GoogleMap) {
         this.googleMap = googleMap
         with(googleMap) {
             uiSettings.isZoomControlsEnabled = true
-            uiSettings.isMyLocationButtonEnabled = true
+
+            initialCameraSetup(this)
+
+            Log.d(TAG, "isMyLocationEnabled: $isMyLocationEnabled")
 
             setOnMapClickListener(this@MapFragment)
             setOnMarkerClickListener(this@MapFragment)
         }
 
         positions?.let {
+            placeCircles(it)
             placeMarkers(it)
         }
-
     }
 
-
-    // Undersök denna...
+    /**
+     * Creates a position object on the clicked area and adds it to the database.
+     * A DialogFragment also gets instantiated and allows the user to set the title.
+     * A marker is then added to the map.
+     */
     override fun onMapClick(latLng: LatLng) {
         val lat = latLng.latitude
         val lon = latLng.longitude
@@ -154,12 +174,21 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         ReminderDialogFragment.newInstance(positionId).apply {
             show(this@MapFragment.childFragmentManager, REQUEST_REMINDER)
         }
+
         marker = googleMap?.addMarker(MarkerOptions().position(latLng))
     }
 
-    override fun onSave(id: UUID, reminder: String) {
-        mapRepository.updatePositionTitle(id, reminder)
-        marker?.title = reminder
+    /**
+     * This callback function is eventually called by ReminderDialogFragment.
+     * Updates the title for the specified position both in the database and in UI.
+     * @param id the UUID representing the specified position
+     * @param title the String representing the title for the specified position
+     */
+    override fun onSave(id: UUID, title: String, radius: Double) {
+        with (mapRepository) {
+            updatePositionTitle(id, title)
+            updatePositionRadius(id, radius)
+        }
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
@@ -176,18 +205,48 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         }
     }
 
-    private fun focusCameraAt(pos: Position, zoomLevel: Float) {
-        val (_, _, lat, long) = pos
-        val position = LatLng(lat, long)
-        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(position, zoomLevel))
-    }
-
     private fun placeMarkers(positions: List<Position>) {
         positions.forEach {
             placeMarker(it)
         }
     }
 
+    private fun placeCircle(pos: Position) {
+        val (_, _, lat, long) = pos
+        val latLng = LatLng(lat, long)
+        val circleOptions = CircleOptions()
+        val radius: Double = if (pos.radius < 10.0) 10.0 else pos.radius
+        with (circleOptions) {
+            center(latLng)
+            radius(radius)
+            strokeColor(Color.BLACK)
+            circleOptions.fillColor(0x30ff0000);
+            strokeWidth(2.0F)
+        }
+        googleMap?.addCircle(circleOptions)
+    }
+
+    private fun placeCircles(positions: List<Position>) {
+        positions.forEach {
+            placeCircle(it)
+        }
+    }
+
+    private fun focusCameraAt(pos: Position, zoomLevel: Float) {
+        val (_, _, lat, long) = pos
+        val position = LatLng(lat, long)
+        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(position, zoomLevel))
+    }
+
+    private fun focusCameraAt(loc: Location, zoomLevel: Float) {
+        val position = LatLng(loc.latitude, loc.longitude)
+        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(position, zoomLevel))
+    }
+
+
+    /**
+     * Provides helper functions to create new instances and encapsulates relevant information.
+     */
     companion object {
         const val ARG_POSITION_ID = "map_id"
         fun newInstance(): MapFragment {
@@ -201,10 +260,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             return MapFragment().apply {
                 arguments = args
             }
-        }
-
-        fun newIntent(context: Context, positionId: UUID): Intent {
-            return Intent(context, MapFragment::class.java)
         }
 
         fun newIntent(context: Context): Intent {

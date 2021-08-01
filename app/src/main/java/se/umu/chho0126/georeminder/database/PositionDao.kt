@@ -20,6 +20,9 @@ interface PositionDao {
     @Query("UPDATE position SET title=(:title) WHERE id=(:id)")
     fun updatePositionTitle(id: UUID, title: String)
 
+    @Query("UPDATE position SET radius=(:radius) WHERE id=(:id)")
+    fun updatePositionRadius(id: UUID, radius: Double)
+
     @Insert
     fun addPosition(position: Position)
 
