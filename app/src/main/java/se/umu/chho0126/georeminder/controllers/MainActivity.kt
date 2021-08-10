@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import androidx.core.content.ContextCompat
 import se.umu.chho0126.georeminder.R
 import java.util.*
@@ -14,7 +13,7 @@ private const val TAG = "MainActivity"
  * The main entry point of the application. This activity is responsible for starting and displaying
  * various fragments. The activity also enables and disbles the location service.
  */
-class MainActivity : AppCompatActivity(), MapListFragment.Callbacks, ReminderDetailFragment.Callbacks {
+class MainActivity : AppCompatActivity(), MapListFragment.Callbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,8 +39,17 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks, ReminderDet
         stopService(intent)
     }
 
-    override fun onMapSelected(positionId: UUID) {
-        val fragment = ReminderDetailFragment.newInstance(positionId)
+    override fun onReminderClicked(reminderId: UUID) {
+        val fragment = ReminderDetailFragment.newInstance(reminderId)
+        supportFragmentManager
+            .beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
+    override fun onReminderMapIconClicked(reminderId: UUID) {
+        val fragment = MapFragment.newInstance(reminderId)
         supportFragmentManager
             .beginTransaction()
             .replace(R.id.fragment_container, fragment)
@@ -50,20 +58,10 @@ class MainActivity : AppCompatActivity(), MapListFragment.Callbacks, ReminderDet
     }
 
     /**
-     * Overriding MapListFragment's callback function. This function starts the map.
+     * Overriding MapListFragment's callback function. This callback starts starts the map.
      */
-    override fun onAddMap() {
+    override fun onMap() {
         val fragment = MapFragment.newInstance()
-        supportFragmentManager
-            .beginTransaction()
-            .setCustomAnimations(android.R.anim.slide_in_left, 0, android.R.anim.slide_in_left, 0)
-            .replace(R.id.fragment_container, fragment)
-            .addToBackStack(null)
-            .commit()
-    }
-
-    override fun onMapButtonClicked(id: UUID) {
-        val fragment = MapFragment.newInstance(id)
         supportFragmentManager
             .beginTransaction()
             .replace(R.id.fragment_container, fragment)

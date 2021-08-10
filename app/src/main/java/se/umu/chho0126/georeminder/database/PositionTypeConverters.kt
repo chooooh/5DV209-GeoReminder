@@ -3,6 +3,9 @@ package se.umu.chho0126.georeminder.database
 import androidx.room.TypeConverter
 import java.util.*
 
+/**
+ * TypeConverter defining how to convert various types. Used by [MapDatabase].
+ */
 class PositionTypeConverters {
 
     @TypeConverter

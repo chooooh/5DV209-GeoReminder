@@ -2,9 +2,13 @@ package se.umu.chho0126.georeminder.models
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.time.format.DateTimeFormatter
+import com.google.android.gms.maps.model.LatLng
 import java.util.*
 
+/**
+ * Represents a position.
+ * @property isEnabled [Boolean] describing whether the (reminder) is enabled.
+ */
 @Entity
 data class Position(
     @PrimaryKey val id: UUID = UUID.randomUUID(),
@@ -12,8 +16,12 @@ data class Position(
     var latitude: Double = 0.0,
     var longitude: Double = 0.0,
     var date: Date = Date(),
-    var radius: Double = 0.0
-)
+    var radius: Double = 0.0,
+    var isEnabled: Boolean = false
+) {
+    val getLatLng: LatLng
+        get() = LatLng(latitude, longitude)
+}
     /*
     var radius: Double = 0.0
         set(value) {

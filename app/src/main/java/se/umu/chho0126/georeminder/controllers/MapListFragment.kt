@@ -11,12 +11,12 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import se.umu.chho0126.georeminder.MapRepository
 import se.umu.chho0126.georeminder.Preferences
 import se.umu.chho0126.georeminder.R
 import se.umu.chho0126.georeminder.models.Position
@@ -36,7 +36,6 @@ class MapListFragment: Fragment() {
 
     private var callbacks: Callbacks? = null
     private var mapAdapter = MapAdapter(emptyList())
-    private var mapRepository = MapRepository.get()
 
     /**
      * Callback functions that MainActivity handles
@@ -44,14 +43,21 @@ class MapListFragment: Fragment() {
     interface Callbacks {
         /**
          * Implementation of this function determines what occurs when the user selects a reminder
+         * @param reminderId UUID that represents the selected Reminder
+         */
+        fun onReminderClicked(reminderId: UUID)
+
+        /**
+         * Implementation of this function determines what occurs when the user selects a reminder's
+         * map button.
          * @param mapId UUID that represents the selected Reminder
          */
-        fun onMapSelected(mapId: UUID)
+        fun onReminderMapIconClicked(mapId: UUID)
 
         /**
          * Occurs when the user presses the "Map" button. This is supposed to start the map fragment
          */
-        fun onAddMap()
+        fun onMap()
 
         /**
          * Occurs when the user presses the "Start Tracking" button. This is supposed to start the
@@ -114,7 +120,7 @@ class MapListFragment: Fragment() {
     }
 
     /**
-     * Initialize the corresponding ViewModel and set context as callback.
+     * Initialize the corresponding ViewModel and enable the Menu.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -122,6 +128,9 @@ class MapListFragment: Fragment() {
         setHasOptionsMenu(true)
     }
 
+    /**
+     * Casts context as [Callbacks].
+     */
     override fun onAttach(context: Context) {
         super.onAttach(context)
         callbacks = context as Callbacks?
@@ -185,7 +194,7 @@ class MapListFragment: Fragment() {
         val view = inflater.inflate(R.layout.fragment_reminder_list, container, false)
         button = view.findViewById(R.id.button)
         button.setOnClickListener {
-            callbacks?.onAddMap()
+            callbacks?.onMap()
         }
 
         mapRecyclerView = view.findViewById(R.id.map_recycler_view)
@@ -200,7 +209,7 @@ class MapListFragment: Fragment() {
      */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        mapListViewModel.mapListLiveData.observe(
+        mapListViewModel.positionListLiveData.observe(
             viewLifecycleOwner,
             {
                 Log.i(TAG, "Got positions ${it.size}")
@@ -226,9 +235,8 @@ class MapListFragment: Fragment() {
         private lateinit var position: Position
         private val titleTextView: TextView = itemView.findViewById(R.id.map_title)
         private val radiusTextView: TextView = itemView.findViewById(R.id.text_radius)
-        private val latTextView: TextView = itemView.findViewById(R.id.text_lat)
-        private val longTextView: TextView = itemView.findViewById(R.id.text_long)
-        private val deleteButton: ImageButton = itemView.findViewById(R.id.imageButton)
+        private val toggleSwitch: SwitchCompat = itemView.findViewById(R.id.reminder_switch)
+        private val mapButton: ImageButton = itemView.findViewById(R.id.reminder_map)
 
         init {
             itemView.setOnClickListener(this)
@@ -236,20 +244,23 @@ class MapListFragment: Fragment() {
 
         fun bind(position: Position) {
             this.position = position
-            titleTextView.text = position.title
-            radiusTextView.text = "${position.radius}m"
-            latTextView.text = position.latitude.round(2).toString()
-            longTextView.text = position.longitude.round(2).toString()
+            with (position) {
+                titleTextView.text = title
+                radiusTextView.text = getString(R.string.meter_label, radius.toInt())
+                toggleSwitch.isChecked = isEnabled
+            }
+            mapButton.setOnClickListener {
+                callbacks?.onReminderMapIconClicked(position.id)
+            }
 
-            deleteButton.setOnClickListener {
-                Log.d(TAG, "Deleting.")
-                mapRepository.deletePosition(position)
+            toggleSwitch.setOnCheckedChangeListener { _, isChecked ->
+                mapListViewModel.updatePositionStatus(position.id, isChecked)
+                mapAdapter.notifyItemChanged(0)
             }
         }
 
         override fun onClick(v: View?) {
-            Log.d(TAG, "ViewHolder clicked..")
-            callbacks?.onMapSelected(position.id)
+            callbacks?.onReminderClicked(position.id)
         }
     }
 

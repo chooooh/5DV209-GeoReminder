@@ -7,7 +7,11 @@ import android.os.Build
 
 const val NOTIFICATION_CHANNEL_ID = "location_service_channel"
 
+/**
+ * Used for initialization of global states, such as MapRepository and also the notification channel.
+ */
 class GeoReminderApplication : Application() {
+
     override fun onCreate() {
         super.onCreate()
         MapRepository.initialize(this)
@@ -19,8 +23,8 @@ class GeoReminderApplication : Application() {
             val name = getString(R.string.notification_channel_name)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance)
-            channel.enableVibration(true)
             val manager = getSystemService(NotificationManager::class.java)
+            channel.enableVibration(true)
             manager.createNotificationChannel(channel)
         }
     }

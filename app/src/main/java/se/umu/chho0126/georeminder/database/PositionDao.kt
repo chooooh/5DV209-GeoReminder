@@ -1,13 +1,13 @@
 package se.umu.chho0126.georeminder.database
 
 import androidx.lifecycle.LiveData
-import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room.*
 import se.umu.chho0126.georeminder.models.Position
 import java.util.*
 
+/**
+ * DAO defining various SQL queries.
+ */
 @Dao
 interface PositionDao {
 
@@ -22,6 +22,12 @@ interface PositionDao {
 
     @Query("UPDATE position SET radius=(:radius) WHERE id=(:id)")
     fun updatePositionRadius(id: UUID, radius: Double)
+
+    @Query("UPDATE position SET isEnabled=(:isEnabled) WHERE id=(:id)")
+    fun updatePositionStatus(id: UUID, isEnabled: Boolean)
+
+    @Update
+    fun updatePosition(position: Position)
 
     @Insert
     fun addPosition(position: Position)

@@ -18,6 +18,7 @@
     <string name="location_permission_edu_message">Location permission is required to track device location to determine whether specified reminders are within range.</string>
     <string name="location_permission_edu_cancel_button">Cancel</string>
     <string name="map_button">Map</string>
+    <string name="meter_label">%d m</string>
 
     <string name="reminder_title_label">Title</string>
     <string name="reminder_title_hint">Enter Reminder title</string>

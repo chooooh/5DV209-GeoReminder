@@ -1,7 +1,6 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
-import android.R
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
@@ -23,8 +22,19 @@ import java.util.*
 private const val TAG = "LocationService"
 private const val NOTIFICATION_REQUEST_CODE = 1
 private const val MAIN_PENDING_INTENT_REQUEST_CODE = 0
-private const val MAP_FRAGMENT_PENDING_INTENT_REQUEST_CODE = 1
 
+// intervals for the location update
+private const val INTERVAL: Long = 120000
+private const val INTERVAL_FASTEST: Long = 120000
+
+/**
+ * Service that tracks location on an interval. Maintains a foreground notification.
+ * @property fusedLocationClient Client that provides location updates.
+ * @property locationCallback Callback that gets called on every update.
+ * @property mapRepository Contains data access functions.
+ * @property positionsLiveData Required in order to handle LiveData acquired by repository functions,
+ * @property positions List containing all positions (reminders)
+ */
 class LocationService : LifecycleService(){
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback = MyLocationCallback()
@@ -32,21 +42,20 @@ class LocationService : LifecycleService(){
     private var positionsLiveData: LiveData<List<Position>> = mapRepository.getPositions()
     private var positions: List<Position> = listOf()
 
-    private data class PositionDTO(val position: Position, val distanceTo: Float, val userLocation: Location) {
-        override fun toString(): String {
-            return "${position.title} - ${distanceTo}"
-        }
-    }
-
+    private data class PositionDTO(val position: Position, val distanceTo: Float, val userLocation: Location)
+    // Callback that gets called on every location update
     private inner class MyLocationCallback: LocationCallback() {
         private var positionsWithinRange: MutableList<PositionDTO> = mutableListOf()
 
         private fun createNotificationDescription(): StringBuilder {
             val description = StringBuilder()
-            positionsWithinRange.forEach {
-                with(description) {
-                    appendLine(it.toString())
+            for (i in positionsWithinRange.indices) {
+                val position = positionsWithinRange[i].position
+                if (i == positionsWithinRange.size-1) {
+                    description.append(position.title)
+                    continue
                 }
+                description.appendLine(position.title).appendLine()
             }
             return description
         }
@@ -58,7 +67,7 @@ class LocationService : LifecycleService(){
                 location.longitude = it.longitude
                 val distance = currentLocation.distanceTo(location)
                 val range = it.radius
-                if (distance <= range) {
+                if (distance <= range && it.isEnabled) {
                     val positionDTO = PositionDTO(it, distance, currentLocation)
                     positionsWithinRange.add(positionDTO)
                 }
@@ -68,18 +77,20 @@ class LocationService : LifecycleService(){
         private fun notifyUserAboutPositionsWithinRange() {
             if (positionsWithinRange.isNotEmpty()) {
                 val description = createNotificationDescription()
+                Log.d(TAG, description.toString())
                 val startActivityIntent = MainActivity.newIntent(this@LocationService)
                 startForegroundService(
                     startActivityIntent = startActivityIntent,
                     context = this@LocationService,
                     pendRequestCode = MAIN_PENDING_INTENT_REQUEST_CODE,
                     notRequestCode = NOTIFICATION_REQUEST_CODE,
-                    notTitle = "Location Service",
+                    notTitle = "Reminders within range",
                     notDesc = description.toString()
                 )
             }
         }
 
+        // The function that gets called on location updates.
         override fun onLocationResult(locationResult: LocationResult) {
             val currentLocation = locationResult.lastLocation
             positionsWithinRange = mutableListOf()
@@ -111,12 +122,17 @@ class LocationService : LifecycleService(){
             .Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(description)
-            .setSmallIcon(R.drawable.ic_menu_report_image)
+            .setSmallIcon(android.R.drawable.ic_menu_report_image)
             .setContentIntent(pendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(description))
             .build()
     }
 
+    /**
+     * Initializes a foreground notification and requests relevant permissions.
+     * If permissions are acquired, create a location request that enables tracking in
+     * specified interval
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         Log.d(TAG, "onStartCommand")
@@ -133,8 +149,7 @@ class LocationService : LifecycleService(){
 
         if(checkLocationPermission()) {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-            //val locationRequest = createLocationRequest(120000, 120000)
-            val locationRequest = createLocationRequest(12000, 12000)
+            val locationRequest = createLocationRequest(INTERVAL, INTERVAL_FASTEST)
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
         }
 
@@ -145,24 +160,11 @@ class LocationService : LifecycleService(){
         return START_STICKY
     }
 
-    override fun onLowMemory() {
-        super.onLowMemory()
-        Log.d(TAG, "onLowMemory")
-    }
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "onTaskRemoved")
-    }
-
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        Log.d(TAG, "onTrimMemory")
-    }
-
+    /**
+     * Store location tracking flag and remove location updates
+     */
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "onDestroy")
         Preferences.setTracking(this, false)
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
@@ -178,5 +180,4 @@ class LocationService : LifecycleService(){
         locationRequest.priority = priority
         return locationRequest
     }
-
 }

@@ -11,11 +11,10 @@ import se.umu.chho0126.georeminder.R
 import java.util.*
 
 private const val TAG = "ReminderDialogFragment"
-private const val ARG_REMINDER = "reminder"
 private const val ARG_ID = "reminder_id"
 
 /**
- * Represents a dialog prompting for the title of the marker.
+ * Represents a dialog prompting user for the title and radius of the Reminder.
  */
 class ReminderDialogFragment : DialogFragment() {
     private lateinit var reminderEditText: EditText
@@ -26,18 +25,26 @@ class ReminderDialogFragment : DialogFragment() {
         /**
          * This function is invoked when the save button is pressed.
          */
-        fun onSave(id: UUID, reminder: String, radius: Double)
+        fun onSave(id: UUID, title: String, radius: Double)
     }
 
+    /**
+     * Cast context as the callback interface, requiring the context to implement the interface
+     * function.
+     */
     override fun onAttach(context: Context) {
         super.onAttach(context)
+        Log.d(TAG, context.toString())
         try {
             callbacks = parentFragment as Callbacks
         } catch (e: ClassCastException) {
-            throw ClassCastException(("$context must implement ReminderDialogListener"))
+            throw ClassCastException("$context must implement ReminderDialogListener")
         }
     }
 
+    /**
+     * Remove callbacks when detaching this fragment.
+     */
     override fun onDetach() {
         super.onDetach()
         callbacks = null
@@ -59,7 +66,12 @@ class ReminderDialogFragment : DialogFragment() {
             builder.setView(view)
             builder.setPositiveButton(R.string.dialog_reminder_save) { _, _ ->
                 Log.d(TAG, "pressed positive button ${reminderEditText.text}")
-                callbacks?.onSave(id, reminderEditText.text.toString(), reminderEditRadius.text.toString().toDouble())
+                val radius = if (reminderEditRadius.text.isEmpty()) {
+                   0.0
+                } else {
+                    reminderEditRadius.text.toString().toDouble()
+                }
+                callbacks?.onSave(id, reminderEditText.text.toString(), radius)
             }
 
             builder.create()
