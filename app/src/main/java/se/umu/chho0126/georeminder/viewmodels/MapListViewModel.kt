@@ -2,8 +2,8 @@ package se.umu.chho0126.georeminder.viewmodels
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import se.umu.chho0126.georeminder.MapRepository
 import se.umu.chho0126.georeminder.models.Position
+import se.umu.chho0126.georeminder.repository.MapRepository
 import java.util.*
 
 /**

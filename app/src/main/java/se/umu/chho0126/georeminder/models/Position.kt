@@ -6,9 +6,10 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.*
 
 /**
- * Represents a position.
- * @property isEnabled [Boolean] describing whether the (reminder) is enabled.
+ * Represents a reminder.
+ * @property isEnabled [Boolean] describing whether the reminder is enabled.
  */
+// todo: byt namn
 @Entity
 data class Position(
     @PrimaryKey val id: UUID = UUID.randomUUID(),
@@ -22,10 +23,3 @@ data class Position(
     val getLatLng: LatLng
         get() = LatLng(latitude, longitude)
 }
-    /*
-    var radius: Double = 0.0
-        set(value) {
-            if (value < 10.0) throw IllegalArgumentException("Radius cannot be less than ")
-        }
-
-     */

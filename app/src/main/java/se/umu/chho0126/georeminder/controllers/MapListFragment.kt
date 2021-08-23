@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import android.widget.Button
 import android.widget.ImageButton
@@ -162,7 +161,6 @@ class MapListFragment: Fragment() {
             R.id.menu_item_toggle_location_service -> {
                 val isTracking = Preferences.isTracking(requireContext())
                 if (isTracking) {
-                    Log.d(TAG, "disabling..")
                     callbacks?.onDisable()
                     Preferences.setTracking(requireContext(), false)
                 } else {
@@ -172,7 +170,6 @@ class MapListFragment: Fragment() {
                         //requestPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                         return true
                     }
-                    Log.d(TAG, "enabling..")
                     callbacks?.onEnable()
                     Preferences.setTracking(requireContext(), true)
                 }
@@ -212,7 +209,6 @@ class MapListFragment: Fragment() {
         mapListViewModel.positionListLiveData.observe(
             viewLifecycleOwner,
             {
-                Log.i(TAG, "Got positions ${it.size}")
                 updateUI(it)
             }
         )

@@ -7,16 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.LiveData
 import com.google.android.gms.location.*
-import se.umu.chho0126.georeminder.MapRepository
 import se.umu.chho0126.georeminder.NOTIFICATION_CHANNEL_ID
 import se.umu.chho0126.georeminder.Preferences
 import se.umu.chho0126.georeminder.models.Position
+import se.umu.chho0126.georeminder.repository.MapRepository
 import java.util.*
 
 private const val TAG = "LocationService"
@@ -24,8 +23,8 @@ private const val NOTIFICATION_REQUEST_CODE = 1
 private const val MAIN_PENDING_INTENT_REQUEST_CODE = 0
 
 // intervals for the location update
-private const val INTERVAL: Long = 120000
-private const val INTERVAL_FASTEST: Long = 120000
+private const val INTERVAL: Long = 1000*60*2
+private const val INTERVAL_FASTEST: Long = 1000*60*2
 
 /**
  * Service that tracks location on an interval. Maintains a foreground notification.
@@ -77,7 +76,6 @@ class LocationService : LifecycleService(){
         private fun notifyUserAboutPositionsWithinRange() {
             if (positionsWithinRange.isNotEmpty()) {
                 val description = createNotificationDescription()
-                Log.d(TAG, description.toString())
                 val startActivityIntent = MainActivity.newIntent(this@LocationService)
                 startForegroundService(
                     startActivityIntent = startActivityIntent,
@@ -135,7 +133,6 @@ class LocationService : LifecycleService(){
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        Log.d(TAG, "onStartCommand")
 
         val startActivityIntent = MainActivity.newIntent(this)
         startForegroundService(

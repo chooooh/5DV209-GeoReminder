@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import se.umu.chho0126.georeminder.repository.MapRepository
 
 const val NOTIFICATION_CHANNEL_ID = "location_service_channel"
 

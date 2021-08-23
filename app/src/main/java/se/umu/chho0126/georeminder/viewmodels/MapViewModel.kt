@@ -1,11 +1,9 @@
 package se.umu.chho0126.georeminder.viewmodels
 
-import android.util.Log
 import androidx.lifecycle.*
 import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import se.umu.chho0126.georeminder.MapRepository
 import se.umu.chho0126.georeminder.models.Position
+import se.umu.chho0126.georeminder.repository.MapRepository
 import java.util.*
 
 private const val TAG = "MapViewModel"

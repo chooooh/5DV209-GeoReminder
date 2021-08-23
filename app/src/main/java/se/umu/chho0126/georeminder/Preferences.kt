@@ -30,6 +30,5 @@ object Preferences {
             .edit {
                 putBoolean(PREF_IS_TRACKING, isOn)
             }
-
     }
 }

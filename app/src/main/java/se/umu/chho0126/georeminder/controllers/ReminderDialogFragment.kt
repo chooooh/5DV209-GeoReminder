@@ -3,7 +3,6 @@ package se.umu.chho0126.georeminder.controllers
 import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
@@ -34,7 +33,6 @@ class ReminderDialogFragment : DialogFragment() {
      */
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        Log.d(TAG, context.toString())
         try {
             callbacks = parentFragment as Callbacks
         } catch (e: ClassCastException) {
@@ -51,7 +49,7 @@ class ReminderDialogFragment : DialogFragment() {
     }
 
     /**
-     * Constructs the dialog view and setup the button listener.
+     * Constructs the dialog view and setups the button listener.
      */
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         return activity?.let {
@@ -65,7 +63,6 @@ class ReminderDialogFragment : DialogFragment() {
             reminderEditRadius = view.findViewById(R.id.dialog_reminder_edit_radius)
             builder.setView(view)
             builder.setPositiveButton(R.string.dialog_reminder_save) { _, _ ->
-                Log.d(TAG, "pressed positive button ${reminderEditText.text}")
                 val radius = if (reminderEditRadius.text.isEmpty()) {
                    0.0
                 } else {

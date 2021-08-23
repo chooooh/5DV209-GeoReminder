@@ -1,13 +1,10 @@
 package se.umu.chho0126.georeminder.controllers
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,10 +14,11 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.*
 import com.google.android.gms.maps.model.*
-import se.umu.chho0126.georeminder.MapRepository
+
 import se.umu.chho0126.georeminder.R
 import se.umu.chho0126.georeminder.models.Position
 import se.umu.chho0126.georeminder.viewmodels.MapViewModel
+import se.umu.chho0126.georeminder.repository.MapRepository
 import java.util.*
 
 
@@ -73,7 +71,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
      * and focusing on markers on position data changes.
      */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        Log.d(TAG, "onViewCreated")
         super.onViewCreated(view, savedInstanceState)
         mapView.onCreate(savedInstanceState)
         mapView.onResume()
@@ -102,7 +99,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
     override fun onPause() {
         super.onPause()
         mapView.onPause()
-        Log.d(TAG, "onPause: ${googleMap?.cameraPosition.toString()}")
         googleMap?.let {
             mapViewModel.saveCameraPositionState(it.cameraPosition)
         }
@@ -152,7 +148,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         with(googleMap) {
             uiSettings.isZoomControlsEnabled = true
 
-            Log.d(TAG, "onMapReady")
             initialCameraSetup(this)
 
 

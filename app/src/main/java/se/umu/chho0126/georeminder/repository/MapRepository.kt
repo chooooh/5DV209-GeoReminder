@@ -1,4 +1,4 @@
-package se.umu.chho0126.georeminder
+package se.umu.chho0126.georeminder.repository
 
 import android.content.Context
 import androidx.lifecycle.LiveData
